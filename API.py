@@ -1,106 +1,93 @@
-from flask import Flask, jsonify, request
-import pymysql
-from flask_cors import CORS
-import logging
-from asgiref.wsgi import WsgiToAsgi
+from fastapi import FastAPI
+import pyodbc
+from typing import List, Dict
 
-app = Flask(__name__)
-#CORS(app, resources={r"/login": {"origins": "http://localhost:3000"}}, supports_credentials=True)
-CORS(app, supports_credentials=True)
-asgi_app = WsgiToAsgi(app)
-db_config = {
-    'host': 'mentordb.mysql.database.azure.com',
-    'user': 'mentordbuser',
-    'password': 'm3nt0r2024%',
-    'db': 'mentordb1',
-    'charset': 'utf8mb4',
-    'cursorclass': pymysql.cursors.DictCursor,
-    'ssl': {'ca': 'DigiCertGlobalRootCA.crt.pem'}
-}
+# Database setup
+DATABASE_CONNECTION_STRING = (
+    "Driver={ODBC Driver 18 for SQL Server};"
+    "Server=tcp:umng-experiment.database.windows.net,1433;"
+    "Database=datos-experimentos;"
+    "Uid=JuanChurio;"
+    "Pwd=UmngExperimento4$;"
+    "Encrypt=yes;"
+    "TrustServerCertificate=no;"
+    "Connection Timeout=30;"
+)
+connection = pyodbc.connect(DATABASE_CONNECTION_STRING)
 
+# FastAPI app instance
+app = FastAPI()
 
-@app.errorhandler(Exception)
-def handle_exception(e):
-    logging.error(f"Error interno,por favor intente más tarde: {str(e)}") 
-    return jsonify(error="Ocurrió un error interno, por favor intente más tarde."), 500
-
-
-                            #---Dashboard components
-
-#Home display        
-@app.route('/')
-def home():
-    return 'MentorIA statistics DEPLOY'
-
-#Primary filter Usertype and companyId
-def get_user_company_id_if_admin(id):
+def insertRows(data: dict):
+    cursor = connection.cursor()
     try:
-        connection = pymysql.connect(**db_config)
-        with connection.cursor() as cursor:
-            query = """
-                SELECT company_id, type_id 
-                FROM users 
-                WHERE id = %s;
-            """
-            cursor.execute(query, (id,))
-            user_info = cursor.fetchone()
-            
-            if user_info and user_info['type_id'] == 3:
-                return user_info['company_id']
-            else:
-                return None
-            
-    except Exception as e:
-        print(f"Error al obtener la información del usuario: {e}")
-        return None
+        sql = '''
+            INSERT INTO segundaIteracion (CONDITION_A, CONDITION_B, GRAPH, timeTaken, Error, controlCondition, timePer)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        '''
+        cursor.execute(sql, (
+            data['CONDITION_A'],
+            data['CONDITION_B'],
+            data['GRAPH'],
+            data['timeTaken'],
+            data['Error'],
+            data['controlCondition'],
+            data['timePer']
+        ))
+        cursor.commit()
     finally:
-        connection.close()
+        cursor.close()
+    return {"status": "success", "message": "Row inserted successfully"}
 
-def get_messages_by_company_id(company_id):
+def insertUser(data: dict):
+    cursor = connection.cursor()
     try:
-        connection = pymysql.connect(**db_config)
-        with connection.cursor() as cursor:
-            query = """
-                SELECT 
-                u.id AS user_id,
-                u.name AS username,
-                DATE(m.timestamp) AS date,
-                COUNT(m.id) AS message_count
-                FROM messages m
-                INNER JOIN users u ON m.user_id = u.id
-                WHERE u.company_id = %s
-                GROUP BY user_id, date
-                ORDER BY date ASC, username ASC;
-            """
-            cursor.execute(query, (company_id,))
-            result = cursor.fetchall() 
-            
-            if result:
-                return jsonify(result), 200
-            else:
-                return jsonify({"message": "No messages found for this company"}), 404
-        
-    except Exception as e:
-        print(f"Error al obtener los mensajes: {e}")
-        return jsonify({"message": "Internal server error"}), 500
+        sql = '''
+            INSERT INTO caracterizacion (ID, gender, age, visionImpediment)
+            VALUES (?, ?, ?, ?)
+        '''
+        cursor.execute(sql, (
+            data['ID'],
+            data['gender'],
+            data['age'],
+            data['visionImpediment']
+        ))
+        cursor.commit()
     finally:
-        connection.close()
-        
-#Endpoint-messages by day per company
-@app.route('/messagesuserbyday/<int:id>', methods=['GET'])
-def messagesuserbyday(id):
-    company_id = get_user_company_id_if_admin(id)
-    if company_id is None:
-        return jsonify({"message": "User not found or not admin"}), 404
-    return get_messages_by_company_id(company_id)
+        cursor.close()
+    return {"status": "success", "message": "Row inserted successfully"}
+
+def getLatestUser():
+    cursor = connection.cursor()
+    cursor.execute("SELECT MAX(id) FROM your_table_name")
+    latest_id = cursor.fetchone()[0]
+    cursor.close()
+    connection.close()
+
+    return latest_id
+
+# Function to execute a SELECT query
+def get_experiment_data() -> List[Dict]:
+    cursor = connection.cursor()
+    cursor.execute("SELECT * FROM DatosExperimento")
+    rows = cursor.fetchall()
+    columns = [column[0] for column in cursor.description]  # Extract column names
+    cursor.close()
+    return [dict(zip(columns, row)) for row in rows]
+
+@app.post("/insertRows/")
+async def insert_experiment_data(data: dict):
+    return insertRows(data)
+
+@app.post("/insertUser/")
+async def insert_user_data(data: dict):
+    return insertUser(data)
+
+@app.get("/getLatestUser/")
+async def getLatest():
+    return getLatestUser()
 
 
-
-if __name__ == '__main__':
-    import uvicorn
-    uvicorn.run(asgi_app, host='0.0.0.0', port=8000)
-
-"""if __name__ == '__main__':
-    app.run(debug=True)"""
-
-""""""
+@app.get("/")
+async def read_root():
+    return {"message": "Hello, World!"}
