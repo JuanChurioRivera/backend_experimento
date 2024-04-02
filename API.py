@@ -67,13 +67,7 @@ def getLatestUser():
     return latest_id
 
 # Function to execute a SELECT query
-def get_experiment_data() -> List[Dict]:
-    cursor = connection.cursor()
-    cursor.execute("SELECT * FROM DatosExperimento")
-    rows = cursor.fetchall()
-    columns = [column[0] for column in cursor.description]  # Extract column names
-    cursor.close()
-    return [dict(zip(columns, row)) for row in rows]
+
 
 @app.post("/insertRows/")
 async def insert_experiment_data(data: dict):
