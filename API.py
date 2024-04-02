@@ -59,7 +59,7 @@ def insertUser(data: dict):
 
 def getLatestUser():
     cursor = connection.cursor()
-    cursor.execute("SELECT MAX(id) FROM your_table_name")
+    cursor.execute("SELECT MAX(ID) FROM caracterizacion")
     latest_id = cursor.fetchone()[0]
     cursor.close()
     connection.close()
