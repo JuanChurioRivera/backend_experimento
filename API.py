@@ -59,7 +59,7 @@ def insertUser(data: dict):
 
 def getLatestUser():
     cursor = connection.cursor()
-    cursor.execute("SELECT MAX(ID) FROM caracterizacion")
+    cursor.execute("SELECT MAX(id) FROM your_table_name")
     latest_id = cursor.fetchone()[0]
     cursor.close()
     connection.close()
@@ -67,7 +67,13 @@ def getLatestUser():
     return latest_id
 
 # Function to execute a SELECT query
-
+def get_experiment_data() -> List[Dict]:
+    cursor = connection.cursor()
+    cursor.execute("SELECT * FROM DatosExperimento")
+    rows = cursor.fetchall()
+    columns = [column[0] for column in cursor.description]  # Extract column names
+    cursor.close()
+    return [dict(zip(columns, row)) for row in rows]
 
 @app.post("/insertRows/")
 async def insert_experiment_data(data: dict):
@@ -78,9 +84,12 @@ async def insert_user_data(data: dict):
     return insertUser(data)
 
 @app.get("/getLatestUser/")
-async def getLatest():
-    return getLatestUser()
+async def getLatest(data: dict):
+    return getLatestUser(data)
 
+@app.get("/experiment_data/")
+async def get_experiment_data_endpoint():
+    return get_experiment_data()
 
 @app.get("/")
 async def read_root():
